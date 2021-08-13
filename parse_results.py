@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import xml.etree.ElementTree as ET
 import json
+import datetime
 
 def process_results_xml(filepath):
     tree = ET.parse(filepath)
@@ -44,57 +45,61 @@ def parse_test(worklet_el):
         elif phase.get('type') == 'calibration':
             worklet_result.append({'loadlevel': 'calibration', 
                                    'worklet': worklet_el.get('name'),
-                                   'score': phase.find('calibrationResult/transactionsPerSecond').text})
+                                   'score': float(phase.find('calibrationResult/transactionsPerSecond').text)})
 
     return worklet_result
 
 
 def parse_score(test_el):
-    return test_el.find('score').text
+    return float(test_el.find('score').text)
 
 def parse_metrics(loadlevel, test_el):
     metrics = {}
     for m in test_el.find('metrics').iter('provider'):
         for m_type in m:
             if m_type.tag == 'timing':
-                metrics["start"] = m_type.find('interval/started').text
-                metrics["end"] = m_type.find('interval/ending').text
+                metrics["start"] = datetime.datetime.strptime(m_type.find('interval/started').text, '%Y-%m-%dT%H:%M:%S.%f%z')
+                metrics["end"] = datetime.datetime.strptime(m_type.find('interval/ending').text, '%Y-%m-%dT%H:%M:%S.%f%z')
             elif m_type.tag == 'temperature-sensor':
-                metrics["temp-min"] = m_type.find('measurement/temperature/minimum').text
-                metrics["temp-max"] = m_type.find('measurement/temperature/maximum').text
-                metrics["temp-avg"] = m_type.find('measurement/temperature/average').text
+                metrics["temp-min"] = float(m_type.find('measurement/temperature/minimum').text)
+                metrics["temp-max"] = float(m_type.find('measurement/temperature/maximum').text)
+                metrics["temp-avg"] = float(m_type.find('measurement/temperature/average').text)
             elif m_type.tag == 'power-analyzer':
-                metrics["watts-min"] = m_type.find('measurement/watts/minimum').text
-                metrics["watts-max"] = m_type.find('measurement/watts/maximum').text
-                metrics["watts-avg"] = m_type.find('measurement/watts/average').text
+                metrics["watts-min"] = float(m_type.find('measurement/watts/minimum').text)
+                metrics["watts-max"] = float(m_type.find('measurement/watts/maximum').text)
+                metrics["watts-avg"] = float(m_type.find('measurement/watts/average').text)
             
     return metrics
 
 def parse_summary(summary_el):
-    results = {}
+    results = []
     for workload in summary_el.findall('workload'):
-        results[workload.get('name')] = parse_worklet_summary(workload)
-        results[workload.get('name')]['workload-efficiency'] = workload.find('score').text
+        results += parse_worklet_summary(workload)
+        results.append({'workload': workload.get('name'), 'efficiency-score': float(workload.find('score').text)})
+    results.append({'workload': 'All', 'efficiency-score': float(summary_el.find('score').text)})
     return results
 
 def parse_worklet_summary(workload_el):
-    result = {}
+    result = []
     for worklet in workload_el.findall('worklet'):
-        name = worklet.get('name')
-        result[name] = parse_test_summary(worklet)
-        result[name]['ref-score'] = worklet.find('reference-performance').text
-        result[name]['worklet-efficiency'] = worklet.find('score').text
+        result += parse_test_summary(worklet, workload_el.get('name'))
+        result.append({'workload': workload_el.get('name'), 'worklet': worklet.get('name'), 'efficiency-score':float(worklet.find('score').text)})
     return result
 
-def parse_test_summary(worklet_el):
-    scores_all = {}
+def parse_test_summary(worklet_el, workload_name):
+    scores = []
     for load in worklet_el.findall('loadLevel'):
-        scores = {}
-        for t in load.iter():
-            if not t.text.isspace():
-                scores[t.tag] = t.text
-        scores_all[load.get('name')] = scores
-    return scores_all
+        scores.append({
+            'workload': workload_name,
+            'worklet': worklet_el.get('name'),
+            'loadlevel': load.get('name'),
+            'score': float(load.find('performance-score').text),
+            'norm-score': float(load.find('normalized-performance').text),
+            'watts-avg': float(load.find('average-watts').text),
+            'ref-score': float(worklet_el.find('reference-performance').text),
+            'efficiency-score': 1000 * float(load.find('normalized-performance').text) / float(load.find('average-watts').text)
+        })
+    return scores
 
 def parse_test_environment(root_el):
     env = {}
@@ -107,9 +112,6 @@ def parse_test_environment(root_el):
         env['dimm_size_mb'] = hardware_el.find('{http://spec.org/test-environment}Memory/{http://spec.org/test-environment}Dimms/{http://spec.org/test-environment}DimmSizeMB').text
         env['psu'] = hardware_el.find('{http://spec.org/test-environment}PowerSupplies/{http://spec.org/test-environment}PowerSupply/{http://spec.org/test-environment}RatingInWatts').text
         env['ref'] = root_el.find('{http://spec.org/test-environment}TestEnvironment/{http://spec.org/test-environment}TestInformation/{http://spec.org/test-environment}InternalReference').text
-    else:
-        for node in root_el.iter():
-            print(node)
     return env
 
 def merge(a, b, path=None):
