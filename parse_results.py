@@ -58,8 +58,16 @@ def parse_metrics(loadlevel, test_el):
     for m in test_el.find('metrics').iter('provider'):
         for m_type in m:
             if m_type.tag == 'timing':
-                metrics["start"] = datetime.datetime.strptime(m_type.find('interval/started').text, '%Y-%m-%dT%H:%M:%S.%f%z')
-                metrics["end"] = datetime.datetime.strptime(m_type.find('interval/ending').text, '%Y-%m-%dT%H:%M:%S.%f%z')
+                # SERT time format not consistent
+                try:
+                    metrics["start"] = datetime.datetime.strptime(m_type.find('interval/started').text, '%Y-%m-%dT%H:%M:%S.%f%z')
+                except ValueError:
+                    metrics["start"] = datetime.datetime.strptime(m_type.find('interval/started').text, '%Y-%m-%dT%H:%M:%Sf%z')
+
+                try:
+                    metrics["end"] = datetime.datetime.strptime(m_type.find('interval/ending').text, '%Y-%m-%dT%H:%M:%S.%f%z')
+                except ValueError:
+                    metrics["end"] = datetime.datetime.strptime(m_type.find('interval/ending').text, '%Y-%m-%dT%H:%M:%S%z')
             elif m_type.tag == 'temperature-sensor':
                 metrics["temp-min"] = float(m_type.find('measurement/temperature/minimum').text)
                 metrics["temp-max"] = float(m_type.find('measurement/temperature/maximum').text)
