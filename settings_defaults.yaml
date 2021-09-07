@@ -1,0 +1,6 @@
+results_dir: sert_results
+cpu_metrics_dir: cpu_data
+test_settings: test_settings.csv
+temp_dir: temp_dir
+data_file: all_data.csv
+overwrite_data: false
