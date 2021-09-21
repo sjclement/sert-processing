@@ -4,3 +4,10 @@ test_settings: test_settings.csv
 temp_dir: temp_dir
 data_file: all_data.csv
 overwrite_data: false
+
+influxdb:
+    user: root
+    password: root
+    tunnel-database: sensors
+    host: localhost
+    port: 8086
