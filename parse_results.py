@@ -62,7 +62,7 @@ def parse_metrics(loadlevel, test_el):
                 try:
                     metrics["start"] = datetime.datetime.strptime(m_type.find('interval/started').text, '%Y-%m-%dT%H:%M:%S.%f%z')
                 except ValueError:
-                    metrics["start"] = datetime.datetime.strptime(m_type.find('interval/started').text, '%Y-%m-%dT%H:%M:%Sf%z')
+                    metrics["start"] = datetime.datetime.strptime(m_type.find('interval/started').text, '%Y-%m-%dT%H:%M:%S%z')
 
                 try:
                     metrics["end"] = datetime.datetime.strptime(m_type.find('interval/ending').text, '%Y-%m-%dT%H:%M:%S.%f%z')
@@ -116,10 +116,18 @@ def parse_test_environment(root_el):
         env['vendor'] = hardware_el.find('{http://spec.org/test-environment}Vendor').text
         env['model'] = hardware_el.find('{http://spec.org/test-environment}Model').text
         env['cpu'] = hardware_el.find('{http://spec.org/test-environment}Cpu/{http://spec.org/test-environment}Name').text
-        env['dimms'] = hardware_el.find('{http://spec.org/test-environment}Memory/{http://spec.org/test-environment}Dimms/{http://spec.org/test-environment}Quantity').text
+        env['dimms'] = int(hardware_el.find('{http://spec.org/test-environment}Memory/{http://spec.org/test-environment}Dimms/{http://spec.org/test-environment}Quantity').text)
         env['dimm_size_mb'] = hardware_el.find('{http://spec.org/test-environment}Memory/{http://spec.org/test-environment}Dimms/{http://spec.org/test-environment}DimmSizeMB').text
         env['psu'] = hardware_el.find('{http://spec.org/test-environment}PowerSupplies/{http://spec.org/test-environment}PowerSupply/{http://spec.org/test-environment}RatingInWatts').text
         env['ref'] = root_el.find('{http://spec.org/test-environment}TestEnvironment/{http://spec.org/test-environment}TestInformation/{http://spec.org/test-environment}InternalReference').text
+    
+    host_el = root_el.find('run-data/host')
+    if host_el:
+        env['hostname'] = host_el.get('id')
+        env['logical_cores'] = int(host_el.find('cpu-info/logical-core-count').text)
+        env['physical_cores'] = int(host_el.find('cpu-info/physical-core-count').text)
+        env['numa_nodes'] = int(host_el.find('cpu-info/numa-node-count').text)
+        
     return env
 
 def merge(a, b, path=None):
