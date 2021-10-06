@@ -11,3 +11,8 @@ influxdb:
     tunnel-database: sensors
     host: localhost
     port: 8086
+
+whitelist:
+    sert-XXX1,
+    sert-XXX2,
+    sert-XXX3  
